@@ -1,0 +1,73 @@
+workflows:
+  ios-hrbcp:
+    name: iOS HR-BCP Mobile Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+      vars:
+        XCODE_PROJECT_DIR: ios/HRBCPMobileIOS
+        XCODE_SCHEME: HRBCPMobileIOS
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: id.co.bcpgroup.hrbcp.mobile
+
+    scripts:
+      - name: Generate Xcode project with XcodeGen
+        script: |
+          set -e
+          brew update || true
+          brew install xcodegen || true
+          cd "$XCODE_PROJECT_DIR"
+          xcodegen generate
+
+      - name: Resolve Swift Package dependencies
+        script: |
+          set -e
+          cd "$XCODE_PROJECT_DIR"
+          xcodebuild -resolvePackageDependencies \
+            -project HRBCPMobileIOS.xcodeproj \
+            -scheme "$XCODE_SCHEME"
+
+      - name: Build unsigned .app (fallback)
+        script: |
+          set -e
+          cd "$XCODE_PROJECT_DIR"
+          xcodebuild \
+            -project HRBCPMobileIOS.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/HRBCPMobileIOS.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Build signed IPA (when signing files are configured)
+        script: |
+          set -e
+          cd "$XCODE_PROJECT_DIR"
+          xcode-project use-profiles
+          xcodebuild \
+            -project HRBCPMobileIOS.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -archivePath build/HRBCPMobileIOS-signed.xcarchive \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath build/HRBCPMobileIOS-signed.xcarchive \
+            -exportOptionsPlist Scripts/ExportOptions.plist \
+            -exportPath build/exported
+
+    artifacts:
+      - ios/HRBCPMobileIOS/build/**/*.ipa
+      - ios/HRBCPMobileIOS/build/**/*.app
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - haep0506@gmail.com
+        notify:
+          success: true
+          failure: true
