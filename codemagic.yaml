@@ -10,7 +10,7 @@ workflows:
         XCODE_PROJECT_DIR: ios/HRBCPMobileIOS
         XCODE_SCHEME: HRBCPMobileIOS
       ios_signing:
-        distribution_type: ad_hoc
+        distribution_type: app_store
         bundle_identifier: id.co.bcpgroup.hrbcp.mobile
 
     scripts:
